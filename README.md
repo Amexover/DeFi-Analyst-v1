@@ -49,3 +49,14 @@ pytest -q
 Render Free web services spin down after 15 minutes idle, and the next request may take about a minute. Render provides 750 free instance hours per workspace per month and applies bandwidth/build limits. Free service outbound API traffic may also be limited. Check Render's current terms before deployment.
 
 Sources: [DefiLlama API](https://defillama.com/docs/api), [CoinGecko API](https://docs.coingecko.com/reference/introduction), [Render FastAPI guide](https://render.com/docs/deploy-fastapi), [Render Free limits](https://render.com/docs/free).
+# ChatGPT / MCP
+
+The same Render service exposes a stateless Streamable HTTP MCP endpoint at
+`https://defi-analyst-v1.onrender.com/mcp/`. It provides six read-only tools:
+`search_protocol`, `get_protocol_metrics`, `get_historical_tvl`,
+`get_fees_revenue`, `get_token_market_data`, and `compare_peers`.
+
+The endpoint is public and uses the same upstream API rate limits as the REST
+routes. CoinGecko token data needs `COINGECKO_DEMO_API_KEY` set on Render.
+The MCP tools return the REST envelope, including `retrieved_at`, source URLs,
+and warnings. Missing values remain `null`.
