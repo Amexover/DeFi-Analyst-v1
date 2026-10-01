@@ -11,6 +11,7 @@ from fastapi import FastAPI, Query, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
+from .mcp_server import mcp
 
 from .providers import CoinGecko, DefiLlama, ProviderError
 
@@ -82,11 +83,13 @@ async def lifespan(app: FastAPI):
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         app.state.llama = DefiLlama(client)
         app.state.gecko = CoinGecko(client)
-        yield
+        async with mcp.session_manager.run():
+            yield
 
 
 app = FastAPI(title='DeFi Analyst v1', version='1.0.0', lifespan=lifespan,
               description='Normalized public DeFi data. Null means unavailable; no investment recommendations.')
+app.mount('/mcp', mcp.streamable_http_app())
 
 
 @app.exception_handler(ProviderError)
