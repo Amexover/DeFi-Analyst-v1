@@ -1,3 +1,4 @@
+import json
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -6,7 +7,7 @@ from app.main import app
 from app.providers import DefiLlama, CoinGecko
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def client():
     with TestClient(app) as client:
         yield client
@@ -52,3 +53,27 @@ def test_fees_and_token(client, monkeypatch):
     assert token['market_cap'] == 100
     assert token['fully_diluted_valuation'] == 200
     assert token['total_volume_24h'] is None
+
+
+def test_mcp_discovery_and_tool_call(client, monkeypatch):
+    headers = {'accept': 'application/json, text/event-stream',
+               'content-type': 'application/json', 'mcp-protocol-version': '2025-06-18'}
+    def rpc(method, params, request_id):
+        return client.post('/mcp/', headers=headers, json={
+            'jsonrpc': '2.0', 'id': request_id, 'method': method, 'params': params})
+
+    init = rpc('initialize', {'protocolVersion': '2025-06-18', 'capabilities': {},
+                              'clientInfo': {'name': 'test', 'version': '1'}}, 1)
+    assert init.status_code == 200
+    tools = rpc('tools/list', {}, 2).json()['result']['tools']
+    assert {tool['name'] for tool in tools} == {
+        'search_protocol', 'get_protocol_metrics', 'get_historical_tvl',
+        'get_fees_revenue', 'get_token_market_data', 'compare_peers'}
+
+    async def protocols():
+        return [{'slug': 'aave', 'name': 'Aave', 'category': 'Lending', 'tvl': 100}]
+    monkeypatch.setattr(app.state.llama, 'protocols', protocols)
+    result = rpc('tools/call', {'name': 'search_protocol',
+                                'arguments': {'query': 'aave'}}, 3).json()['result']
+    assert not result['isError']
+    assert json.loads(result['content'][0]['text'])['data']['items'][0]['slug'] == 'aave'
