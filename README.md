@@ -1,4 +1,14 @@
-# DeFi Analyst v1 API
+# DeFi Analyst v1
+
+### DeFi data with its sources attached
+
+**A small API and MCP service for exploring protocols, token markets, and lending peers.**
+
+[Run locally](#run-locally) · [Endpoints](#endpoints) · [Tests](#tests) · [MCP](#chatgpt--mcp)
+
+| Protocol data | Token data | Every response |
+| --- | --- | --- |
+| TVL, fees, revenue and peers from DefiLlama | Price, market cap, FDV and supply from CoinGecko | Retrieval time, sources and warnings |
 
 A small FastAPI service that normalizes public DefiLlama protocol data and CoinGecko token data. It returns facts only. Missing metrics are `null`; empty history is `[]`. Source URLs and retrieval time are included in every successful response.
 
@@ -49,7 +59,7 @@ pytest -q
 Render Free web services spin down after 15 minutes idle, and the next request may take about a minute. Render provides 750 free instance hours per workspace per month and applies bandwidth/build limits. Free service outbound API traffic may also be limited. Check Render's current terms before deployment.
 
 Sources: [DefiLlama API](https://defillama.com/docs/api), [CoinGecko API](https://docs.coingecko.com/reference/introduction), [Render FastAPI guide](https://render.com/docs/deploy-fastapi), [Render Free limits](https://render.com/docs/free).
-# ChatGPT / MCP
+## ChatGPT / MCP
 
 The same Render service exposes a stateless Streamable HTTP MCP endpoint at
 `https://defi-analyst-v1.onrender.com/mcp/`. It provides six read-only tools:
