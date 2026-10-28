@@ -1,5 +1,6 @@
 """MCP tools backed by the same validated REST routes as the public API."""
 
+import json
 import re
 
 import httpx
@@ -12,7 +13,9 @@ mcp = FastMCP(
     instructions=(
         'Use these tools for current public DeFi data. Treat null as unavailable. '
         'Always mention source dates, distinguish TVL, fees, revenue, market cap and FDV, '
-        'and separate protocol fundamentals from token investment analysis.'
+        'and separate protocol fundamentals from token investment analysis. '
+        'Daily history defaults to completed UTC days. Inspect window, coverage and cache age. '
+        'Category peers are candidates; TVL and revenue scopes are not independently reconciled.'
     ),
     streamable_http_path='/',
     stateless_http=True,
@@ -31,8 +34,7 @@ async def _get(path: str, params: dict | None = None) -> dict:
         response = await client.get(path, params=params)
     body = response.json()
     if response.is_error:
-        detail = body.get('error', {})
-        raise ValueError(f"{detail.get('code', 'api_error')}: {detail.get('message', response.reason_phrase)}")
+        raise ValueError(json.dumps({'http_status': response.status_code, **body}))
     return body
 
 
@@ -55,15 +57,15 @@ async def get_protocol_metrics(slug: str) -> dict:
 
 
 @mcp.tool()
-async def get_historical_tvl(slug: str, days: int = 90) -> dict:
-    """Get daily historical protocol TVL in USD for up to 3650 days."""
-    return await _get(f'/v1/protocols/{_slug(slug)}/tvl', {'days': days})
+async def get_historical_tvl(slug: str, days: int = 90, include_current_day: bool = False) -> dict:
+    """Get one TVL snapshot per completed UTC day; opt in to the partial current day."""
+    return await _get(f'/v1/protocols/{_slug(slug)}/tvl', {'days': days, 'include_current_day': include_current_day})
 
 
 @mcp.tool()
-async def get_fees_revenue(slug: str, days: int = 90) -> dict:
-    """Get protocol fees and revenue separately, with history where available."""
-    return await _get(f'/v1/protocols/{_slug(slug)}/fees-revenue', {'days': days})
+async def get_fees_revenue(slug: str, days: int = 90, include_current_day: bool = False) -> dict:
+    """Get separate fees/revenue and completed-day history; inspect scope and provider methodology."""
+    return await _get(f'/v1/protocols/{_slug(slug)}/fees-revenue', {'days': days, 'include_current_day': include_current_day})
 
 
 @mcp.tool()
@@ -74,5 +76,5 @@ async def get_token_market_data(coin_id: str, vs_currency: str = 'usd') -> dict:
 
 @mcp.tool()
 async def compare_peers(slug: str, limit: int = 5) -> dict:
-    """Find protocols in the same DefiLlama category, ranked by current TVL."""
+    """Find category peers ranked by provider TVL, with explicit comparability limitations."""
     return await _get(f'/v1/protocols/{_slug(slug)}/peers', {'limit': limit})
